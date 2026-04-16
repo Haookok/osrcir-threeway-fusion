@@ -1,0 +1,43 @@
+\usepackage[a4paper,margin=2.6cm]{geometry}
+\usepackage{setspace}
+\setstretch{1.25}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{fancyhdr}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+\setmainfont{TeX Gyre Termes}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  urlcolor=blue!50!black,
+  citecolor=blue!50!black
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[C]{本科毕业论文初稿}
+\fancyfoot[C]{\thepage}
+
+\ctexset{
+  chapter = {
+    format = \centering\heiti\zihao{3},
+    name = {第,章},
+    number = \chinese{chapter},
+    beforeskip = 20pt,
+    afterskip = 20pt
+  },
+  section = {
+    format = \heiti\zihao{4}
+  },
+  subsection = {
+    format = \heiti\zihao{-4}
+  }
+}
+
+\captionsetup{font=small,labelfont=bf}

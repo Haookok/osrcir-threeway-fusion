@@ -35,3 +35,10 @@ Thumbs.db
 # Env
 .env
 *.env
+
+# Large/external assets
+cache_fiq_images/
+logs/
+tools/fashion-iq-metadata/
+tools/fashion-iq-official/
+*.pdf

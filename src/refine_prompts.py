@@ -88,6 +88,45 @@ V7_FASHIONIQ_GARMENT_ONLY = '''
 }
 '''
 
+V7_FASHIONIQ_RICH_PRESERVE = '''
+- You are a fashion retrieval description expert. You are given TWO images and a manipulation text.
+- **Image 1** is the **Original Image**.
+- **Image 2** is a **Proxy Image** generated from a first-round description. It may contain hallucinations.
+- Your goal is to refine the target garment description for CLIP-based fashion retrieval.
+
+## CRITICAL
+- Treat the Proxy Image only as a diagnostic tool; do NOT copy its details.
+- If the manipulation text does NOT explicitly request a change, preserve the corresponding garment attribute from the Original Image exactly.
+- Never let the Proxy Image overwrite unchanged attributes from the Original Image.
+
+## Attribute Policy
+- Requested attributes (from the manipulation text): apply them exactly.
+- Unrequested attributes: preserve from the Original Image when they are visually clear.
+- If the Proxy conflicts with the Original on an unchanged attribute, trust the Original.
+
+## Target Image Description — MOST IMPORTANT
+- Write a SINGLE English sentence (or two short ones) with RICH, concrete, CLIP-friendly fashion attributes.
+- Target length: 30-60 words (do NOT be overly brief; CLIP can use long text).
+- Cover as many discriminative attributes as possible: garment type (dress/top/shirt/tee), silhouette (fit-and-flare, bodycon, A-line, shift, wrap, sheath, maxi, mini, midi, knee-length, etc.), neckline (V-neck, crew, scoop, halter, off-shoulder, etc.), sleeve (sleeveless, cap, short, 3/4, long), color(s), print/pattern (solid, floral, striped, geometric, etc.), material/texture (silk-like, satin, cotton, lace, sequin, denim, chiffon, knit, velvet, leather, etc.), embellishments (ruffles, lace trim, beaded, embroidered, pleated, belted, tiered, buttons, etc.).
+- Describe the GARMENT ONLY. No mentions of the model, her face, shoes, background, pose, or styling.
+- Do not invent attributes not supported by the original image or the manipulation text.
+
+## Input
+{
+    "Original Image": <image_1>,
+    "Proxy Image": <image_2>,
+    "Manipulation text": <manipulation_text>
+}
+
+## Response
+{
+    "Original Image Description": <garment-focused description of the original>,
+    "Thoughts": <what changes + what stays + proxy sanity check>,
+    "Reflections": <consolidated attribute set for the target>,
+    "Target Image Description": <rich 30-60 word single-sentence garment-only description>
+}
+'''
+
 V7_FASHIONIQ_PRESERVE_UNCHANGED = '''
 - You are a fashion retrieval description expert. You are given TWO images and a manipulation text.
 - **Image 1** is the **Original Image**.

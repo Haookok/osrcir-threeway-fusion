@@ -75,6 +75,8 @@ flowchart TB
     style GALLERY fill:#9C27B0,color:#fff
 ```
 
+
+
 ### 超参数 α 和 β 的含义
 
 ```mermaid
@@ -105,14 +107,19 @@ flowchart LR
     style MIX_A fill:#2196F3,color:#fff
 ```
 
+
+
 **α 和 β 通俗理解**：
 
-| 超参数 | 控制什么 | 值大 = ? | 值小 = ? |
-|:---:|---|---|---|
-| **β** | D₁ vs D₂ 的权重 | 更信任**原始描述** D₁ | 更信任**精炼描述** D₂ |
-| **α** | 文本 vs 代理图的权重 | 更依赖**文本检索** | 更依赖**图像检索**（代理图）|
+
+| 超参数   | 控制什么         | 值大 = ?         | 值小 = ?           |
+| ----- | ------------ | -------------- | ---------------- |
+| **β** | D₁ vs D₂ 的权重 | 更信任**原始描述** D₁ | 更信任**精炼描述** D₂   |
+| **α** | 文本 vs 代理图的权重 | 更依赖**文本检索**    | 更依赖**图像检索**（代理图） |
+
 
 **举例**：
+
 - β=1.0, α=1.0 → 纯 D₁ 文本检索（= baseline，不用任何创新）
 - β=0.7, α=0.9 → 默认参数：D₁ 占 70% + D₂ 占 30%，文本占 90% + 代理图占 10%
 - β=0.30, α=0.95 → change_object 最优：D₂ 占 70%（精炼很有用），代理图仅 5%
@@ -151,10 +158,12 @@ flowchart LR
 3. 网格搜索只做加权组合和排序，无需重复调用模型
 
 关键公式不变：
+
 ```
 ensemble_sim = β·sim(D1, gallery) + (1-β)·sim(D2, gallery)
 threeway_sim = α·ensemble_sim + (1-α)·sim(proxy, gallery)
 ```
+
 由于 normalize 后的特征做内积，β 加权在相似度空间和特征空间的排序等价（分母对同一 query 的所有 gallery 项相同），因此可以在相似度空间直接搜索。
 
 ## 三、换机器带来的问题与解决
@@ -169,10 +178,12 @@ threeway_sim = α·ensemble_sim + (1-α)·sim(proxy, gallery)
 
 实测对比（同一段文本的编码结果）：
 
-| 加载方式 | 与 JIT 权重的 cos_sim |
-|---|---|
-| `ViT-L-14`（标准 GELU）| **0.970**（有差异，影响排名）|
-| `ViT-L-14-quickgelu` | **0.999999**（完全一致）|
+
+| 加载方式                 | 与 JIT 权重的 cos_sim   |
+| -------------------- | ------------------- |
+| `ViT-L-14`（标准 GELU）  | **0.970**（有差异，影响排名） |
+| `ViT-L-14-quickgelu` | **0.999999**（完全一致）  |
+
 
 **第一次运行误用了 `ViT-L-14`**，导致 D1/D2/proxy 在 GELU 空间、gallery 在 QuickGELU 空间，跨空间检索使 baseline 数值偏低（如 change_object baseline R@1=13.21 vs PDF 中的 13.88）。
 
@@ -180,14 +191,16 @@ threeway_sim = α·ensemble_sim + (1-α)·sim(proxy, gallery)
 
 ### 3.2 环境差异汇总
 
-| 项目 | Windows (之前全量) | Linux (本次网格搜索) |
-|---|---|---|
-| GPU | RTX 4060 8GB | NVIDIA L20 48GB |
-| CLIP 加载 | torch.jit.load | open_clip (quickgelu) |
-| Python | 3.11 | 3.8 |
-| PyTorch | CUDA 12.x | 2.4.1+cu121 |
-| 激活函数 | QuickGELU ✅ | QuickGELU ✅（修复后）|
-| Gallery 图片 | 本地有 | 本地无，用缓存 |
+
+| 项目         | Windows (之前全量) | Linux (本次网格搜索)        |
+| ---------- | -------------- | --------------------- |
+| GPU        | RTX 4060 8GB   | NVIDIA L20 48GB       |
+| CLIP 加载    | torch.jit.load | open_clip (quickgelu) |
+| Python     | 3.11           | 3.8                   |
+| PyTorch    | CUDA 12.x      | 2.4.1+cu121           |
+| 激活函数       | QuickGELU ✅    | QuickGELU ✅（修复后）      |
+| Gallery 图片 | 本地有            | 本地无，用缓存               |
+
 
 ### 3.3 其他问题
 
@@ -199,12 +212,14 @@ threeway_sim = α·ensemble_sim + (1-α)·sim(proxy, gallery)
 
 ### 4.1 Baseline 验证（编码一致性确认）
 
-| 子集 | PDF 中 baseline R@1 | 本次 baseline R@1 | 差异 |
-|---|---|---|---|
-| change_object | 13.88 | 13.83 | -0.05 |
-| change_attribute | 12.70 | 12.70 | 0.00 |
-| focus_object | 16.02 | 16.02 | 0.00 |
-| focus_attribute | 18.82 | 18.82 | 0.00 |
+
+| 子集               | PDF 中 baseline R@1 | 本次 baseline R@1 | 差异    |
+| ---------------- | ------------------ | --------------- | ----- |
+| change_object    | 13.88              | 13.83           | -0.05 |
+| change_attribute | 12.70              | 12.70           | 0.00  |
+| focus_object     | 16.02              | 16.02           | 0.00  |
+| focus_attribute  | 18.82              | 18.82           | 0.00  |
+
 
 差异 ≤0.05pp，来自 gallery 缓存的极少量 id 差异，可忽略。change_attribute 的 gallery 是本机重新编码的，baseline 完全一致。
 
@@ -212,67 +227,74 @@ threeway_sim = α·ensemble_sim + (1-α)·sim(proxy, gallery)
 
 #### change_object (n=1960)
 
-| 配置 | β | α | R@1 | R@2 | R@3 |
-|---|:---:|:---:|:---:|:---:|:---:|
-| Baseline | 1.0 | — | 13.83 | 25.20 | 36.22 |
-| 默认参数 | 0.7 | 0.9 | 13.93 | 25.56 | 36.63 |
+
+| 配置         | β        | α        | R@1       | R@2   | R@3   |
+| ---------- | -------- | -------- | --------- | ----- | ----- |
+| Baseline   | 1.0      | —        | 13.83     | 25.20 | 36.22 |
+| 默认参数       | 0.7      | 0.9      | 13.93     | 25.56 | 36.63 |
 | **最优 R@1** | **0.30** | **0.95** | **14.85** | 26.28 | 37.30 |
-| 最优综合 | 0.40 | 1.00 | 14.44 | 27.60 | 38.62 |
+| 最优综合       | 0.40     | 1.00     | 14.44     | 27.60 | 38.62 |
+
 
 默认 ΔR@1=+0.10 → 最优 ΔR@1=**+1.02**（提升 10 倍）。低 β 说明 V7 精炼描述 D2 对此任务价值很大。
 
 #### focus_object (n=1960)
 
-| 配置 | β | α | R@1 | R@2 | R@3 |
-|---|:---:|:---:|:---:|:---:|:---:|
-| Baseline | 1.0 | — | 16.02 | 26.58 | 35.61 |
-| 默认参数 | 0.7 | 0.9 | 15.15 | 25.87 | 35.31 |
+
+| 配置         | β        | α        | R@1       | R@2   | R@3   |
+| ---------- | -------- | -------- | --------- | ----- | ----- |
+| Baseline   | 1.0      | —        | 16.02     | 26.58 | 35.61 |
+| 默认参数       | 0.7      | 0.9      | 15.15     | 25.87 | 35.31 |
 | **最优 R@1** | **1.00** | **0.90** | **16.07** | 25.56 | 35.00 |
+
 
 默认 ΔR@1=**-0.87** → 最优 ΔR@1=**+0.05**（从下降逆转为微升）。β=1.0 意味着完全不用 D2，证实 V7 对 focus_object 的过度压缩问题。
 
 #### change_attribute (n=2111)
 
-| 配置 | β | α | R@1 | R@2 | R@3 |
-|---|:---:|:---:|:---:|:---:|:---:|
-| Baseline | 1.0 | — | 12.70 | 22.36 | 31.74 |
-| 默认参数 | 0.7 | 0.9 | 12.98 | 23.54 | 32.69 |
+
+| 配置         | β        | α        | R@1       | R@2   | R@3   |
+| ---------- | -------- | -------- | --------- | ----- | ----- |
+| Baseline   | 1.0      | —        | 12.70     | 22.36 | 31.74 |
+| 默认参数       | 0.7      | 0.9      | 12.98     | 23.54 | 32.69 |
 | **最优 R@1** | **0.80** | **0.80** | **14.02** | 23.54 | 31.64 |
-| 最优综合 | 0.50 | 0.90 | 13.64 | 23.54 | 32.88 |
+| 最优综合       | 0.50     | 0.90     | 13.64     | 23.54 | 32.88 |
+
 
 默认 ΔR@1=+0.28 → 最优 ΔR@1=**+1.33**（提升 4.7 倍）。较高 β 说明原始描述 D1 权重较大但 D2 仍有贡献。
 
 #### focus_attribute (n=1998)
 
-| 配置 | β | α | R@1 | R@2 | R@3 |
-|---|:---:|:---:|:---:|:---:|:---:|
-| Baseline | 1.0 | — | 18.82 | 30.88 | 41.24 |
-| 默认参数 | 0.7 | 0.9 | 19.87 | 30.93 | 42.49 |
+
+| 配置         | β        | α        | R@1       | R@2   | R@3   |
+| ---------- | -------- | -------- | --------- | ----- | ----- |
+| Baseline   | 1.0      | —        | 18.82     | 30.88 | 41.24 |
+| 默认参数       | 0.7      | 0.9      | 19.87     | 30.93 | 42.49 |
 | **最优 R@1** | **0.60** | **0.85** | **20.37** | 31.13 | 42.54 |
+
 
 默认 ΔR@1=+1.05 → 最优 ΔR@1=**+1.55**（进一步提升 48%）。
 
 ### 4.3 汇总
 
-| 子集 | 默认 β=0.7 α=0.9 | 最优参数 | 最优 ΔR@1 | 状态变化 |
-|---|---|---|---|---|
-| change_object | +0.10 | β=0.30 α=0.95 | **+1.02** | 小幅→显著 |
-| change_attribute | +0.28 | β=0.80 α=0.80 | **+1.33** | 小幅→显著 |
-| focus_object | **-0.87** | β=1.00 α=0.90 | **+0.05** | **下降→微升** |
-| focus_attribute | +1.05 | β=0.60 α=0.85 | **+1.55** | 提升→更大提升 |
+
+| 子集               | 默认 β=0.7 α=0.9 | 最优参数          | 最优 ΔR@1   | 状态变化      |
+| ---------------- | -------------- | ------------- | --------- | --------- |
+| change_object    | +0.10          | β=0.30 α=0.95 | **+1.02** | 小幅→显著     |
+| change_attribute | +0.28          | β=0.80 α=0.80 | **+1.33** | 小幅→显著     |
+| focus_object     | **-0.87**      | β=1.00 α=0.90 | **+0.05** | **下降→微升** |
+| focus_attribute  | +1.05          | β=0.60 α=0.85 | **+1.55** | 提升→更大提升   |
+
 
 ## 五、关键发现
 
 1. **各子集最优参数差异显著**，不存在一组通用最优参数：
-   - change_object: β=0.30（D2 权重 70%）、α=0.95（proxy 仅 5%）
-   - change_attribute: β=0.80（D2 权重 20%）、α=0.80（proxy 20%）
-   - focus_object: β=1.00（完全不用 D2）、α=0.90（proxy 10%）
-   - focus_attribute: β=0.60（D2 权重 40%）、α=0.85（proxy 15%）
-
+  - change_object: β=0.30（D2 权重 70%）、α=0.95（proxy 仅 5%）
+  - change_attribute: β=0.80（D2 权重 20%）、α=0.80（proxy 20%）
+  - focus_object: β=1.00（完全不用 D2）、α=0.90（proxy 10%）
+  - focus_attribute: β=0.60（D2 权重 40%）、α=0.85（proxy 15%）
 2. **focus_object 的 D2 完全无效**（β=1.0 最优），验证了 PDF 中的分析：V7 prompt 的"描述长度不超过修改文本"限制导致 focus_object 的 D2 退化为 1-3 个词（占 4.2%），反而引入噪声。
-
 3. **proxy 图像的贡献因任务而异**：change_object 几乎不需要（α=0.95），change_attribute 和 focus_attribute 有较大贡献（α=0.80~0.85），focus_object 有微弱正面作用（α=0.90）。
-
 4. **所有子集均可通过参数调优实现正向提升**：4/4 子集最优 ΔR@1 为正，最差的 focus_object 也从 -0.87 逆转为 +0.05。
 
 ### 3.4 change_attribute gallery 缓存重建
@@ -299,24 +321,29 @@ gallery 缓存曾被空文件覆盖，VG 图片不在本机。通过以下步骤
 
 **背景**：实验二证明了调参能提升 GeneCIS，但 D2 精炼描述的质量本身有改进空间。分析发现 GeneCIS 和 FashionIQ/CIRR 有本质区别：
 
-| | FashionIQ / CIRR | GeneCIS |
-|---|---|---|
-| 修改文本 | 具体句子（15-30 词） | **1-2 个词**（如 "wall"、"color"） |
-| Gallery 大小 | 几千~几万张 | **仅 14 张**（同场景抽取） |
-| 检索难度 | 全局匹配 | **细粒度区分相似图** |
+
+|            | FashionIQ / CIRR | GeneCIS                      |
+| ---------- | ---------------- | ---------------------------- |
+| 修改文本       | 具体句子（15-30 词）    | **1-2 个词**（如 "wall"、"color"） |
+| Gallery 大小 | 几千~几万张           | **仅 14 张**（同场景抽取）            |
+| 检索难度       | 全局匹配             | **细粒度区分相似图**                 |
+
 
 V7 prompt 的核心问题：
+
 - **"描述长度不超过修改文本"** → GeneCIS 的修改文本只有 1-2 词，D2 被压缩到 2-3 词（如 "Blonde hair with altered attribute"），信息量严重不足
 - V7 生成的 D2 常含 **模糊词**（"modified"、"altered"、"changed"），CLIP 无法从中获取区分信号
 
 **改动**：在 `src/refine_prompts.py` 中新增 4 个 GeneCIS 专用 prompt（V2），每个子任务一个：
 
-| Prompt | 针对任务 | 与 V7 的核心差异 |
-|---|---|---|
-| `GENECIS_CHANGE_OBJECT` | 物体变化 | 要求 5-12 词，描述变化后的物体+一个场景锚点 |
-| `GENECIS_CHANGE_ATTRIBUTE` | 属性变化 | 要求 5-12 词，指明具体属性变化值（如颜色名） |
-| `GENECIS_FOCUS_OBJECT` | 聚焦物体 | 要求 8-15 词，列出物体的 2-3 个真实视觉细节 |
-| `GENECIS_FOCUS_ATTRIBUTE` | 聚焦属性 | 要求 8-15 词，列出 2-3 个具体属性值及对应物体 |
+
+| Prompt                     | 针对任务 | 与 V7 的核心差异                   |
+| -------------------------- | ---- | ---------------------------- |
+| `GENECIS_CHANGE_OBJECT`    | 物体变化 | 要求 5-12 词，描述变化后的物体+一个场景锚点    |
+| `GENECIS_CHANGE_ATTRIBUTE` | 属性变化 | 要求 5-12 词，指明具体属性变化值（如颜色名）    |
+| `GENECIS_FOCUS_OBJECT`     | 聚焦物体 | 要求 8-15 词，列出物体的 2-3 个真实视觉细节  |
+| `GENECIS_FOCUS_ATTRIBUTE`  | 聚焦属性 | 要求 8-15 词，列出 2-3 个具体属性值及对应物体 |
+
 
 ### 6.2 没有改什么
 
@@ -333,36 +360,45 @@ V7 prompt 的核心问题：
 
 #### change_object 示例
 
-| 修改文本 | V7 D2 | **V2 D2** |
-|---|---|---|
-| donut | A donut on a plate on the table | **Cinnamon-sugar donut on white plate with teapot** |
-| food | No food object present to change. | **Fruit bowl with yellow kite** |
+
+| 修改文本  | V7 D2                             | **V2 D2**                                           |
+| ----- | --------------------------------- | --------------------------------------------------- |
+| donut | A donut on a plate on the table   | **Cinnamon-sugar donut on white plate with teapot** |
+| food  | No food object present to change. | **Fruit bowl with yellow kite**                     |
+
 
 #### focus_object 示例
 
-| 修改文本 | V7 D2 | **V2 D2** |
-|---|---|---|
-| wine glass | Wine glass on table, focus on glass | **Clear wine glass with pale yellow liquid, thin stem, and round base** |
-| gravel | Railway tracks with gravel in focus | **Gray and brown irregular stones forming compacted railway ballast** |
-| curtain | Brown valance curtain over a bay window | **Brown pleated valance with scalloped edge and shiny fabric texture** |
+
+| 修改文本       | V7 D2                                   | **V2 D2**                                                               |
+| ---------- | --------------------------------------- | ----------------------------------------------------------------------- |
+| wine glass | Wine glass on table, focus on glass     | **Clear wine glass with pale yellow liquid, thin stem, and round base** |
+| gravel     | Railway tracks with gravel in focus     | **Gray and brown irregular stones forming compacted railway ballast**   |
+| curtain    | Brown valance curtain over a bay window | **Brown pleated valance with scalloped edge and shiny fabric texture**  |
+
 
 #### change_attribute 示例
 
-| 修改文本 | V7 D2 | **V2 D2** |
-|---|---|---|
-| olive green | Train with modified olive green color | **Train with dark olive green body** |
-| blond | Blonde hair with altered attribute | **Man with dark brown hair** |
-| orange | An orange with a green color | **orange with dark green-black skin** |
+
+| 修改文本        | V7 D2                                 | **V2 D2**                             |
+| ----------- | ------------------------------------- | ------------------------------------- |
+| olive green | Train with modified olive green color | **Train with dark olive green body**  |
+| blond       | Blonde hair with altered attribute    | **Man with dark brown hair**          |
+| orange      | An orange with a green color          | **orange with dark green-black skin** |
+
 
 #### focus_attribute 示例
 
-| 修改文本 | V7 D2 | **V2 D2** |
-|---|---|---|
-| color | Yellow tulip with green leaves, emphasized color | **yellow tulip, green leaves, pink patterned surface** |
-| color | Person in dark jacket and cap taking mirror selfie with altered color tone | **black jacket, black cap, striped tie, beige wall** |
-| letter color | Blue street signs with altered letter color | **white letters on blue sign** |
+
+| 修改文本         | V7 D2                                                                      | **V2 D2**                                              |
+| ------------ | -------------------------------------------------------------------------- | ------------------------------------------------------ |
+| color        | Yellow tulip with green leaves, emphasized color                           | **yellow tulip, green leaves, pink patterned surface** |
+| color        | Person in dark jacket and cap taking mirror selfie with altered color tone | **black jacket, black cap, striped tie, beige wall**   |
+| letter color | Blue street signs with altered letter color                                | **white letters on blue sign**                         |
+
 
 **V2 的改进**：
+
 - ❌ V7 常用 "modified"、"altered"、"changed"、"focus on" 等模糊词 → CLIP 无法区分
 - ✅ V2 直接给出具体视觉特征（颜色名、材质、形状）→ CLIP 编码更精准
 
@@ -370,66 +406,74 @@ V7 prompt 的核心问题：
 
 #### change_object（200 样本，COCO）
 
-| 配置 | Prompt | β | α | R@1 | R@2 | R@3 | ΔR@1 vs Baseline |
-|---|---|:---:|:---:|:---:|:---:|:---:|:---:|
-| Baseline | D1 only | 1.0 | 1.0 | 9.00 | 21.50 | 33.00 | — |
-| V7 三路融合 | V7 | 0.45 | 0.80 | 13.50 | 22.50 | 35.00 | +4.50 |
-| **V2 三路融合** | **V2** | **0.10** | **1.00** | **14.00** | **22.50** | **33.50** | **+5.00** |
+
+| 配置          | Prompt  | β        | α        | R@1       | R@2       | R@3       | ΔR@1 vs Baseline |
+| ----------- | ------- | -------- | -------- | --------- | --------- | --------- | ---------------- |
+| Baseline    | D1 only | 1.0      | 1.0      | 9.00      | 21.50     | 33.00     | —                |
+| V7 三路融合     | V7      | 0.45     | 0.80     | 13.50     | 22.50     | 35.00     | +4.50            |
+| **V2 三路融合** | **V2**  | **0.10** | **1.00** | **14.00** | **22.50** | **33.50** | **+5.00**        |
+
 
 **V2 胜出 +0.50pp**。V2 的 β=0.10 说明几乎只用 D2（D2 权重 90%），V2 描述质量高到可以替代 D1。
 
 #### focus_object（200 样本，COCO）
 
-| 配置 | Prompt | β | α | R@1 | R@2 | R@3 | ΔR@1 vs Baseline |
-|---|---|:---:|:---:|:---:|:---:|:---:|:---:|
-| Baseline | D1 only | 1.0 | 1.0 | 17.00 | 28.50 | 38.50 | — |
-| V7 三路融合 | V7 | 0.25 | 1.00 | 19.00 | 29.50 | 39.00 | +2.00 |
-| **V2 三路融合** | **V2** | **0.45** | **0.80** | **20.00** | **27.50** | **34.50** | **+3.00** |
+
+| 配置          | Prompt  | β        | α        | R@1       | R@2       | R@3       | ΔR@1 vs Baseline |
+| ----------- | ------- | -------- | -------- | --------- | --------- | --------- | ---------------- |
+| Baseline    | D1 only | 1.0      | 1.0      | 17.00     | 28.50     | 38.50     | —                |
+| V7 三路融合     | V7      | 0.25     | 1.00     | 19.00     | 29.50     | 39.00     | +2.00            |
+| **V2 三路融合** | **V2**  | **0.45** | **0.80** | **20.00** | **27.50** | **34.50** | **+3.00**        |
+
 
 **V2 胜出 +1.00pp**。这是最关键的突破——V7 在 focus_object 上 D2 几乎无用（实验二中 β=1.0），V2 成功让 D2 重新发挥作用。
 
 #### change_attribute（200 样本，VG）
 
-| 配置 | Prompt | β | α | R@1 | R@2 | R@3 | ΔR@1 vs Baseline |
-|---|---|:---:|:---:|:---:|:---:|:---:|:---:|
-| Baseline | D1 only | 1.0 | 1.0 | 13.50 | 23.50 | 32.50 | — |
-| V7 三路融合 | V7 | 0.30 | 0.85 | 18.50 | 26.50 | 32.00 | +5.00 |
-| **V2 三路融合** | **V2** | **0.45** | **0.90** | **19.50** | **25.00** | **32.50** | **+6.00** |
+
+| 配置          | Prompt  | β        | α        | R@1       | R@2       | R@3       | ΔR@1 vs Baseline |
+| ----------- | ------- | -------- | -------- | --------- | --------- | --------- | ---------------- |
+| Baseline    | D1 only | 1.0      | 1.0      | 13.50     | 23.50     | 32.50     | —                |
+| V7 三路融合     | V7      | 0.30     | 0.85     | 18.50     | 26.50     | 32.00     | +5.00            |
+| **V2 三路融合** | **V2**  | **0.45** | **0.90** | **19.50** | **25.00** | **32.50** | **+6.00**        |
+
 
 **V2 胜出 +1.00pp**。
 
 #### focus_attribute（200 样本，VG）
 
-| 配置 | Prompt | β | α | R@1 | R@2 | R@3 | ΔR@1 vs Baseline |
-|---|---|:---:|:---:|:---:|:---:|:---:|:---:|
-| Baseline | D1 only | 1.0 | 1.0 | 18.00 | 32.50 | 43.00 | — |
-| **V7 三路融合** | **V7** | **0.05** | **1.00** | **26.00** | **39.00** | **49.50** | **+8.00** |
-| V2 三路融合 | V2 | 0.95 | 0.70 | 24.50 | 35.00 | 46.00 | +6.50 |
+
+| 配置          | Prompt  | β        | α        | R@1       | R@2       | R@3       | ΔR@1 vs Baseline |
+| ----------- | ------- | -------- | -------- | --------- | --------- | --------- | ---------------- |
+| Baseline    | D1 only | 1.0      | 1.0      | 18.00     | 32.50     | 43.00     | —                |
+| **V7 三路融合** | **V7**  | **0.05** | **1.00** | **26.00** | **39.00** | **49.50** | **+8.00**        |
+| V2 三路融合     | V2      | 0.95     | 0.70     | 24.50     | 35.00     | 46.00     | +6.50            |
+
 
 **V7 胜出 +1.50pp**。唯一 V7 更优的子集。β=0.05 说明几乎只用 D2，V7 的简短风格在此任务上恰好更精准。
 
 ### 6.5 汇总：三次实验的逐步提升
 
-| 子集 | Baseline R@1 | 实验一 ΔR@1<br>(默认参数) | 实验二 ΔR@1<br>(Grid Search) | 实验三 ΔR@1<br>(V2 Prompt) | **最优方案** |
-|---|:---:|:---:|:---:|:---:|---|
-| change_object | 9.00 | +0.15 | +1.02 | **+5.00** | **V2, α=1.0 β=0.10** |
-| focus_object | 17.00 | -0.87 | +0.05 | **+3.00** | **V2, α=0.80 β=0.45** |
-| change_attribute | 13.50 | +0.10 | +1.33 | **+6.00** | **V2, α=0.90 β=0.45** |
-| focus_attribute | 18.00 | +1.05 | +1.55 | **+8.00** | **V7, α=1.0 β=0.05** |
+
+| 子集               | Baseline R@1 | 实验一 ΔR@1 (默认参数) | 实验二 ΔR@1 (Grid Search) | 实验三 ΔR@1 (V2 Prompt) | **最优方案**              |
+| ---------------- | ------------ | --------------- | ---------------------- | -------------------- | --------------------- |
+| change_object    | 9.00         | +0.15           | +1.02                  | **+5.00**            | **V2, α=1.0 β=0.10**  |
+| focus_object     | 17.00        | -0.87           | +0.05                  | **+3.00**            | **V2, α=0.80 β=0.45** |
+| change_attribute | 13.50        | +0.10           | +1.33                  | **+6.00**            | **V2, α=0.90 β=0.45** |
+| focus_attribute  | 18.00        | +1.05           | +1.55                  | **+8.00**            | **V7, α=1.0 β=0.05**  |
+
 
 > 注：实验一/二的 baseline 基于全量数据，实验三基于 200 随机样本，baseline 数值有抽样波动。ΔR@1 均基于各自 baseline 计算。
 
 ### 6.6 关键结论
 
 1. **V2 在 3/4 子集胜出，V7 在 1/4 子集胜出**：
-   - V2 胜出：change_object (+0.50pp)、**focus_object (+1.00pp)**、change_attribute (+1.00pp)
-   - V7 胜出：focus_attribute (-1.50pp)
-
+  - V2 胜出：change_object (+0.50pp)、**focus_object (+1.00pp)**、change_attribute (+1.00pp)
+  - V7 胜出：focus_attribute (-1.50pp)
 2. **focus_object 的突破最有意义**：
-   - 实验一中 focus_object 是唯一下降的子集（ΔR@1=-0.87）
-   - 实验二靠 β=1.0 绕过 D2 只勉强持平（ΔR@1=+0.05）
-   - 实验三 V2 prompt 让 D2 **真正发挥作用**（ΔR@1=+3.00，β=0.45 说明 D2 贡献 55%）
-
+  - 实验一中 focus_object 是唯一下降的子集（ΔR@1=-0.87）
+  - 实验二靠 β=1.0 绕过 D2 只勉强持平（ΔR@1=+0.05）
+  - 实验三 V2 prompt 让 D2 **真正发挥作用**（ΔR@1=+3.00，β=0.45 说明 D2 贡献 55%）
 3. **描述精确性是关键**：V2 prompt 去除了 "modified"/"altered"/"changed" 等模糊词，改为输出具体视觉特征，使 CLIP 编码更有区分度。
 
 ---
@@ -438,12 +482,14 @@ V7 prompt 的核心问题：
 
 ### 各子集当前最优方案
 
-| 子集 | 最优 Prompt | 最优 α | 最优 β | R@1 | ΔR@1 vs Baseline |
-|---|---|:---:|:---:|:---:|:---:|
-| change_object | **V2 GeneCIS** | 1.00 | 0.10 | 14.00 | **+5.00** |
-| focus_object | **V2 GeneCIS** | 0.80 | 0.45 | 20.00 | **+3.00** |
-| change_attribute | **V2 GeneCIS** | 0.90 | 0.45 | 19.50 | **+6.00** |
-| focus_attribute | **V7** | 1.00 | 0.05 | 26.00 | **+8.00** |
+
+| 子集               | 最优 Prompt      | 最优 α | 最优 β | R@1   | ΔR@1 vs Baseline |
+| ---------------- | -------------- | ---- | ---- | ----- | ---------------- |
+| change_object    | **V2 GeneCIS** | 1.00 | 0.10 | 14.00 | **+5.00**        |
+| focus_object     | **V2 GeneCIS** | 0.80 | 0.45 | 20.00 | **+3.00**        |
+| change_attribute | **V2 GeneCIS** | 0.90 | 0.45 | 19.50 | **+6.00**        |
+| focus_attribute  | **V7**         | 1.00 | 0.05 | 26.00 | **+8.00**        |
+
 
 **4/4 子集全部正向提升，最差也有 +3.00pp，最好达 +8.00pp。**
 
@@ -452,3 +498,4 @@ V7 prompt 的核心问题：
 1. **全量验证**：200 样本结论稳定后，在全量数据（~2000/子集）上验证最优配置
 2. **消融实验整理**：将 V7 vs V2 prompt、α/β 敏感性分析整理为论文中的消融实验
 3. **统一参数探索**：尝试找到一组不需要 task-adaptive 的通用参数作为默认推荐值
+

@@ -2,6 +2,47 @@
 ###### GENERAL PROMPTS ############
 ###################################
 
+fashioniq_rich_garment_prompt = '''
+- You are a fashion retrieval expert. You are given an original fashion product image and a manipulation text describing how to change it.
+- Your goal is to produce a richly detailed description of the target garment after applying the changes, optimized for CLIP-based image retrieval.
+
+## Guidelines on the Original Image Description
+    - Describe the garment in detail: type (dress/top/shirt/tee), silhouette, length, neckline, sleeve length/style, color, print/pattern, material/texture, closures, embellishments.
+    - Ignore the model's face, pose, shoes, and background (describe only the garment).
+
+## Guidelines on the Thoughts
+    - Identify which attributes change based on the manipulation text.
+    - Identify which attributes remain unchanged and MUST be preserved in the target description (color if not changed, silhouette if not changed, neckline if not changed, sleeve if not changed, pattern if not changed, etc.).
+    - Resolve ambiguity in the manipulation text (e.g., "shorter" means what vs original).
+
+## Guidelines on the Reflections
+    - Summarize the combined set of attributes for the target garment.
+    - Ensure every attribute is either carried over from the original OR modified by the manipulation text. Do not invent new attributes.
+
+## Guidelines on the Target Image Description (MOST IMPORTANT)
+    - Write a SINGLE English sentence or two, describing the target garment with rich, concrete, CLIP-friendly attributes.
+    - Target length: 30-60 words (do NOT be overly brief, because CLIP can handle long text and short descriptions lose information).
+    - Include as many discriminative attributes as you can infer: garment type, color(s), pattern, silhouette (fit-and-flare, bodycon, A-line, shift, wrap, sheath, maxi, mini, midi, knee-length, etc.), neckline (V-neck, crew, scoop, halter, off-shoulder, etc.), sleeve (sleeveless, cap, short, 3/4, long), material/texture (silk-like, satin, cotton, lace, sequin, denim, chiffon, knit, velvet, leather, etc.), embellishments (ruffles, lace trim, beaded, embroidered, pleated, belted, tiered, etc.).
+    - Prefer fashion vocabulary that matches common clothing captions.
+    - Do NOT mention the model, her face, shoes, background, pose, or styling. Describe the garment only.
+    - Do NOT contradict the original image or the manipulation text.
+
+## Input
+{
+    "Original Image": <image_url>,
+    "Manipulation text": <manipulation_text>
+}
+
+## Response
+{
+    "Original Image Description": <garment-focused description of the original>,
+    "Thoughts": <attributes that change vs stay, and reasoning>,
+    "Reflections": <consolidated attribute set for the target>,
+    "Target Image Description": <rich 30-60 word single-sentence description of the target garment>
+}
+'''
+
+
 mllm_structural_predictor_prompt_CoT = '''
 - You are an image description expert. You are given an original image and manipulation text.
 - Your goal is to generate a target image description that reflects the changes described based on manipulation intents while retaining as much image content from the original image as possible.
